@@ -53,11 +53,12 @@
 
     "files.trimTrailingWhitespace": false,
     "files.associations": {
-        "**/Microsoft Visual Studio/**/MSVC/**/include/**": "cpp",
-        "**/msys64/**/include/**"                         : "cpp",
-        "*.h++"                                           : "cpp",
-        "*.mpp"                                           : "cpp",
-        "*.cppm"                                          : "cpp",
+      "**/Microsoft Visual Studio/**/MSVC/**/include/**": "cpp",
+      "**/msys64/**/include/**"                         : "cpp",
+      "*.h++"                                           : "cpp",
+      "*.ipp"                                           : "cpp",
+      "*.mpp"                                           : "cpp",
+      "*.cppm"                                          : "cpp",
     },
   }
 }

@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.26)
 
-project (bplan  DESCRIPTION  "<description>"
+project (test-beast  DESCRIPTION  "<description>"
                 HOMEPAGE_URL "https://github.com/Challanger524/template-cpp"
                 LANGUAGES     CXX)
 
@@ -35,10 +35,28 @@ target_compile_options(${PROJECT_NAME} PRIVATE "${_FLAGS_COMPILE_0_}"  # flags: 
                                                "${_FLAGS_COMPILE_2_}") #
 
 # # Setup: libraries # #
+# Boost #
+set(BOOST_SOURCE_DIR_ "${CMAKE_SOURCE_DIR}/../boost")
+set(BOOST_INCLUDE_LIBRARIES beast)
+add_subdirectory("${BOOST_SOURCE_DIR_}" "${CMAKE_CURRENT_BINARY_DIR}/dep/boost" EXCLUDE_FROM_ALL)
+
+# [Workaround] https://github.com/boostorg/context/pull/288
+# Suppress build: `masm`: logo, and `clang` warning argument unused during compilation
+#if    (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+#  target_compile_options(boost_context PRIVATE "/nologo")
+#elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+#  target_compile_options(boost_context PRIVATE "-Wno-unused-command-line-argument")
+#endif()
+
+# [Workaround] https://github.com/boostorg/beast/issues/672#issuecomment-318225620
+# Link missing: `ws2_32` library for windows sockets
+if (MINGW)
+  target_link_libraries(boost_asio INTERFACE ws2_32) # mswsock wsock32
+endif()
 
 # # Apply: project dependencies # #
 
-target_link_libraries     (${PROJECT_NAME} )
+target_link_libraries     (${PROJECT_NAME} PRIVATE Boost::beast)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
   "${CMAKE_SOURCE_DIR}/dep"
 ) # rooted dirs will be treated as SYSTEM, even if opposite stated explicitly (with: -I)
