@@ -27,6 +27,19 @@
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
     },
     {
+      "name"       : "clang-cl-dbg",
+      "displayName": "Clang-CL - debug",
+      "inherits"   : "msvc-base",
+      "architecture": { "strategy": "external", "value":      "x64" },
+      "toolset"     : { "strategy": "external", "value": "host=x64" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER"  : "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "_FLAGS_COMPILE_2_": "-Wno-unused-command-line-argument"
+      }
+    },
+    {
       "name": "msvc-dbg",
       "displayName": "0. MSVC - debug",
       "inherits": "msvc-base",

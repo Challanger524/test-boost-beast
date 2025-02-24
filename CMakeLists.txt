@@ -1,5 +1,12 @@
 cmake_minimum_required (VERSION 3.26)
 
+# Load Visual Studio environment for Clang-CL
+if (NOT CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER MATCHES "clang-cl")
+  set(Vcvars_MSVC_ARCH "64" CACHE STRING "" FORCE)
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake-FindVcvars")
+  include(${CMAKE_CURRENT_SOURCE_DIR}/msvcToolchain.cmake)
+endif() # Visual Studio environment for Clang-CL
+
 project (test-beast  DESCRIPTION  "<description>"
                 HOMEPAGE_URL "https://github.com/Challanger524/template-cpp"
                 LANGUAGES     CXX)
@@ -33,6 +40,21 @@ target_compile_options(${PROJECT_NAME} PRIVATE "${_FLAGS_COMP_LINK_}") #
 target_compile_options(${PROJECT_NAME} PRIVATE "${_FLAGS_COMPILE_0_}"  # flags: compliler
                                                "${_FLAGS_COMPILE_1_}"  #
                                                "${_FLAGS_COMPILE_2_}") #
+
+# Print Clang-CL related variables
+if (NOT CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER MATCHES "clang-cl")
+  message("== Vcvars_BATCH_FILE: ${Vcvars_BATCH_FILE}")
+  message("== Vcvars_LAUNCHER  : ${Vcvars_LAUNCHER}"  )
+
+  message("== CMAKE_CXX_SIMULATE_ID              : ${CMAKE_CXX_SIMULATE_ID}"              ) # MSVC
+  message("== CMAKE_CXX_COMPILER_FRONTEND_VARIANT: ${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}") # MSVC
+  message("== CMAKE_CXX_SIMULATE_VERSION         : ${CMAKE_CXX_SIMULATE_VERSION}"         ) # 19.39
+  message("== MSVC_VERSION                       : ${MSVC_VERSION}"                       ) # 1939
+  message("== MSVC                               : ${MSVC}"                               ) # 1
+  message("== CMAKE_CXX_COMPILER                 : ${CMAKE_CXX_COMPILER}"                 ) # .../clang-cl.exe
+  message("== CMAKE_CXX_COMPILER_ID              : ${CMAKE_CXX_COMPILER_ID}"              ) # Clang
+  message("== CMAKE_GENERATOR                    : ${CMAKE_GENERATOR}"                    ) # Ninja
+endif() # clang-cl #]]
 
 # # Setup: libraries # #
 # Boost #

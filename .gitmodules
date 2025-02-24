@@ -1,0 +1,3 @@
+[submodule "cmake-FindVcvars"]
+	path = cmake-FindVcvars
+	url = https://github.com/scikit-build/cmake-FindVcvars

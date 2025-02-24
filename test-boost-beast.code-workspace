@@ -40,6 +40,7 @@
     "C_Cpp.inlayHints.parameterNames.suppressWhenArgumentContainsName":  true,
 
     "cmake.parallelJobs": 4,
+    //"cmake.useVsDeveloperEnvironment": "always", // for clang-cl, "auto" is not detecting
 
     "update.mode"                          : "none",
     "update.enableWindowsBackgroundUpdates":  false,
