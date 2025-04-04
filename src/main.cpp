@@ -22,9 +22,12 @@
 //#  pragma warning (disable: 4091)
 #endif
 
-// clang: -Wno-unused-command-line-argument // asm: context (from boost/asio)
-#include <boost/asio.hpp>
-#include <boost/beast.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/strand.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
 
 #if   defined(__GNUG__) || defined(__GNUC__) || defined(__clang__)
 #  pragma GCC diagnostic pop // alias in Clang (but "#pragma clang diagnostic *" will be ignored by GCC)
@@ -40,7 +43,12 @@
 #elif defined(_MSC_VER)
 */
 
+#include <memory>
+#include <chrono>
+#include <string>
+#include <string_view>
 #include <iostream>
+#include <functional>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -48,11 +56,17 @@
 #include <locale.h>
 #endif // _WIN32
 
-namespace asio  = boost::asio;
-namespace beast = boost::beast;
+namespace net {
+using namespace boost::asio ;
+using namespace boost::beast;
+      namespace http = boost::beast::http;
+using                  boost::asio::ip::tcp;
+}
 
+#define   PORT "80"
 #define   HOST "api.openbudget.gov.ua"
 #define TARGET "/api/public/"
+#define   PING "ping"
 #define    API "localBudgetData"
 #define     P0 "?budgetCode=2555900000"
 #define     P1 "&budgetItem=INCOMES"
@@ -60,6 +74,66 @@ namespace beast = boost::beast;
 #define     P3 "&year=2023"
 
 //constexpr auto get = "https://api.openbudget.gov.ua/api/public/localBudgetData?budgetCode=2555900000&budgetItem=INCOMES&period=QUARTER&year=2024";
+
+// Performs an HTTP GET and prints the response
+class Session : public std::enable_shared_from_this<Session>
+{
+	net::http::request <net::http:: empty_body> request {};
+	net::http::response<net::http::string_body> response{};
+	net::tcp::resolver resolver;
+	net::tcp_stream tstream;
+	net::flat_buffer buffer{}; // (Must persist between reads)
+	std::chrono::steady_clock::duration timeout{};
+
+private:
+	static void fail(net::error_code ec, char const* what) { std::cerr << what << ": " << ec.message() << '\n'; } // Report a failure
+
+public:
+	// Objects are constructed with a strand to ensure that handlers do not execute concurrently
+	explicit Session(net::io_context &ioc) : resolver(net::make_strand(ioc)), tstream(net::make_strand(ioc)) {}
+
+	// Queue the asynchronous operation // queue async I/O operation
+	void Set(std::string_view host, std::string_view port, std::string_view target, std::chrono::steady_clock::duration timeout = std::chrono::seconds{0}) {
+		this->timeout = timeout;
+		//this->tstream.expires_never();
+
+		// Set up an HTTP GET request message
+		request.set(net::http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+		request.set(net::http::field::host, host);
+		request.method(net::http::verb::get);
+		request.version(11);
+		request.target (target);
+
+		// Look up the domain name
+		resolver.async_resolve(host, port,	std::bind_front(&Session::OnResolve, shared_from_this())); // queue async I/O operation
+	}
+
+	void OnResolve(net::error_code ec, net::tcp::resolver::results_type resolves) {
+		using namespace std::literals::chrono_literals;
+		if (ec) return fail(ec, "resolve");
+		if (timeout != 0s) tstream.expires_after(timeout); // Set a timeout on the operation
+		tstream.async_connect(resolves, std::bind_front(&Session::OnConnect, shared_from_this())); // Make the connection on the IP address we get from a lookup
+	}
+
+	void OnConnect(net::error_code ec, net::tcp::resolver::results_type::endpoint_type) {
+		if (ec) return fail(ec, "connect");
+		net::http::async_write(tstream, request, std::bind_front(&Session::OnWrite, shared_from_this())); // Send the HTTP request to the remote host
+	}
+
+	void OnWrite(net::error_code ec, size_t) {
+		if (ec) return fail(ec, "write");
+		net::http::async_read(tstream, buffer, response, std::bind_front(&Session::OnRead, shared_from_this())); // Receive the HTTP response
+	}
+
+	void OnRead(net::error_code ec, size_t) {
+		if (ec) return fail(ec, "read");
+		tstream.socket().shutdown(net::tcp::socket::shutdown_both, ec); // Gracefully close the socket
+
+		std::cout << response << std::endl; // Write the message to standard out
+
+		if (ec && ec != net::errc::not_connected) return fail(ec, "shutdown");
+	}
+};
 
 int main()
 {
@@ -70,44 +144,12 @@ int main()
 	SetConsoleCP      (CP_UTF8);
 #endif
 
-	try
-	{
-		asio::io_context                 context;
-		asio::ip::tcp::resolver resolver(context);
-		beast::tcp_stream       stream  (context);
+	// The io_context is required for all I/O
+	net::io_context ioc;
 
-		beast::http::request<beast::http::empty_body> request;
-		request.method(beast::http::verb::get);
-		request.version(11);
-
-		request.target(TARGET API P0 P1 P2 P3);
-		//request.target("/api/public/localBudgetDataa?budgetCode=2555900000&budgetItem=INCOMES&period=QUARTER&year=2024");
-		request.set(beast::http::field::host      , HOST);
-		request.set(beast::http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-		request.keep_alive(false);
-
-		const auto     resolved = resolver.resolve(HOST, "80");
-		stream.connect(resolved);
-		beast::http::write(stream, request);
-
-		/*
-		beast::http::response<beast::http::   file_body> response;*/
-		beast::http::response<beast::http::dynamic_body> response;
-		beast::flat_buffer buffer(1'000'000); // 1MB file limit
-
-		beast::http::read(stream, buffer, response);
-		stream.socket().shutdown(asio::ip::tcp::socket::shutdown_both);
-
-		std::cout << response << std::endl;
-		std::cout << beast::buffers_to_string(response.body().data()) << std::endl;
-
-		//std::cout << std::endl;
-		//std::cout << response.body().    size() << std::endl;
-		//std::cout << response.body().max_size() << std::endl;
-		//std::cout << buffer.capacity() << std::endl;
-		//std::cout << buffer.    size() << std::endl;
-		//std::cout << buffer.max_size() << std::endl;
-	}
-	catch (std::exception& e) { std::cerr << "Exception: " << e.what() << "\n"; }
-
+	// Launch the asynchronous operation
+	using namespace std::literals::chrono_literals;
+	  std::make_shared<Session>(ioc)->Set(HOST, PORT, TARGET PING           , 4s);
+	//std::make_shared<Session>(ioc)->Set(HOST, PORT, TARGET API P0 P1 P2 P3, std::chrono::seconds{5});
+	ioc.run(); // Dequeue and execute I/O operations. The call will return when the get operation is complete
 }
